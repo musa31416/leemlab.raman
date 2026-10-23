@@ -6,6 +6,8 @@ A web tool for the Leem Lab (UT Dallas). Drop raw Raman TXT exports from the spe
 2. finds the MoS₂ E¹₂g and A₁g peaks on the corrected axis and their peak difference Δ,
 3. gives you a formatted **Excel workbook** and a **ZIP of plots** to download.
 
+Tick the boxes in the results table to stack any set of spectra in the **Selected spectra** tab for a side-by-side comparison. **Download this figure** saves whichever view is showing as a PNG.
+
 Everything runs in the visitor's browser. Raw data is never uploaded anywhere, so the site can be hosted for free on GitHub Pages with no server.
 
 ## What you get
@@ -34,7 +36,7 @@ To update the site later, upload the changed files to the same repository. GitHu
 
 You can also open `index.html` straight from this folder on your own computer: double-click it and it works offline.
 
-## Method (same as the lab MATLAB scripts)
+## Method
 
 | Step | What happens |
 |---|---|
@@ -58,4 +60,4 @@ js/app.js             page behaviour
 js/vendor/            ExcelJS 4.4.0 and JSZip 3.10.1 (MIT licensed), bundled so the site needs no outside servers
 ```
 
-Leem Lab, Department of Mechanical Engineering, The University of Texas at Dallas.
+Leem Lab, Department of Mechanical Engineering, The University of Texas at Dallas. Built by Musa Ibne Mannan.

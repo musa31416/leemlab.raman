@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = { files: [], results: [], selected: 0, view: 'one', example: true };
+  const state = { files: [], results: [], selected: 0, view: 'one', example: true, checked: new Set() };
 
   /* ---------- settings ---------- */
   function settings() {
@@ -82,7 +82,8 @@
         items[i].error = e.message.replace(items[i].name + ': ', '');
       }
     }
-    state.results = results; state.selected = 0; state.example = example;
+    state.results = results; state.selected = 0; state.example = example; state.checked = new Set();
+    if (state.view === 'compare') state.view = 'one';
     $('banner').hidden = !example;
     $('progress').textContent = example ? '' : `Done: ${results.length} spectra from ${items.length} file(s).`;
     if (!example) renderFiles();
@@ -109,16 +110,31 @@
       const tr = document.createElement('tr');
       tr.tabIndex = 0; tr.setAttribute('aria-selected', String(i === state.selected));
       tr.title = `${r.file}, spectrum ${r.index}: ${r.label}${r.note ? '\n' + r.note : ''}`;
-      tr.innerHTML = `<td></td><td>${chip(r, s.deltaDecimals)}</td><td>${f2(r.siRaw)}</td><td>${sgn(r.shift)}</td><td>${f2(r.E)}</td><td>${f2(r.A)}</td>`;
-      tr.firstChild.textContent = r.plotName + (r.lowRes ? '  (low res)' : '');
+      tr.innerHTML = `<td class="pick"><input type="checkbox" aria-label="Compare ${r.plotName.replace(/"/g, '&quot;')}"${state.checked.has(i) ? ' checked' : ''}></td><td class="name"></td><td>${chip(r, s.deltaDecimals)}</td><td>${f2(r.siRaw)}</td><td>${sgn(r.shift)}</td><td>${f2(r.E)}</td><td>${f2(r.A)}</td>`;
+      tr.children[1].textContent = r.plotName + (r.lowRes ? '  (low res)' : '');
+      const box = tr.querySelector('input');
+      box.addEventListener('click', (e) => e.stopPropagation());
+      box.addEventListener('keydown', (e) => e.stopPropagation());
+      box.addEventListener('change', () => {
+        box.checked ? state.checked.add(i) : state.checked.delete(i);
+        updateChecked(); setView('compare');
+      });
       const pick = () => { state.selected = i; setView('one'); highlight(); };
       tr.addEventListener('click', pick);
       tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
       tb.appendChild(tr);
     });
     const has = R.length > 0;
-    $('dlXlsx').disabled = !has; $('dlZip').disabled = !has;
-    drawFigure();
+    $('dlXlsx').disabled = !has; $('dlZip').disabled = !has; $('dlFig').disabled = !has;
+    updateChecked();
+    setView(state.view);
+  }
+  function updateChecked() {
+    $('nSel').textContent = state.checked.size;
+    $('clearSel').hidden = state.checked.size === 0;
+  }
+  function checkedList() {
+    return [...state.checked].sort((a, b) => a - b).map(i => state.results[i]).filter(Boolean);
   }
   function highlight() {
     [...$('tbody').children].forEach((tr, i) => tr.setAttribute('aria-selected', String(i === state.selected)));
@@ -137,6 +153,16 @@
       const r = R[Math.min(state.selected, R.length - 1)];
       RamanPlots.drawSpectrum(c, r, Object.assign(o, { title: r.plotName }));
       c.setAttribute('aria-label', `Plot of ${r.plotName}` + (Number.isFinite(r.delta) ? `, peak difference ${r.delta.toFixed(2)}` : ''));
+    } else if (state.view === 'compare') {
+      const list = checkedList();
+      if (!list.length) {
+        RamanPlots.drawMessage(c, 'Tick two or more spectra in the table to compare them here.', o);
+        c.setAttribute('aria-label', 'No spectra ticked for comparison yet');
+      } else {
+        // first ticked row on top, the way the table reads
+        RamanPlots.drawStacked(c, list.slice().reverse(), Object.assign(o, { title: `Selected spectra (${list.length})` }));
+        c.setAttribute('aria-label', `Stacked comparison of ${list.length} selected spectra: ` + list.map(r => r.plotName + (Number.isFinite(r.delta) ? ` ${r.delta.toFixed(1)}` : '')).join(', '));
+      }
     } else if (state.view === 'stack') {
       RamanPlots.drawStacked(c, R.slice(0, 14), Object.assign(o, { title: R.length > 14 ? `First 14 of ${R.length} spectra (all are in the ZIP)` : 'Si-calibrated spectra' }));
       c.setAttribute('aria-label', 'Stacked plot of all spectra with peak differences');
@@ -237,6 +263,16 @@
   $('clear').addEventListener('click', () => { state.files = []; renderFiles(); loadExample(); });
   $('dlXlsx').addEventListener('click', downloadExcel);
   $('dlZip').addEventListener('click', downloadZip);
+  $('clearSel').addEventListener('click', () => {
+    state.checked.clear();
+    document.querySelectorAll('#tbody input[type=checkbox]').forEach(b => { b.checked = false; });
+    updateChecked(); drawFigure();
+  });
+  $('dlFig').addEventListener('click', async () => {
+    const names = { one: (state.results[state.selected] || {}).fileStem || 'spectrum', compare: 'Selected_spectra', stack: 'All_spectra', si: 'Si_calibration_check' };
+    const blob = await canvasBlob($('fig'));
+    if (blob) save(blob, `${names[state.view] || 'figure'}_${stamp()}.png`);
+  });
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
   ['siRef', 'pMin', 'pMax', 'dec', 'sat'].forEach(id => $(id).addEventListener('change', () => (state.example ? loadExample() : run())));
 

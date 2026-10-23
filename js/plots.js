@@ -231,5 +231,14 @@
     });
   }
 
-  root.RamanPlots = { drawSpectrum, drawStacked, drawSiCheck, colors: C };
+  /* ---------- placeholder when nothing is ticked ---------- */
+  function drawMessage(canvas, text, o) {
+    const s = o.scale || 2, W = 820 * s, H = 360 * s;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d'); frame(ctx, W, H);
+    ctx.font = `${16 * s}px ${FONT}`; ctx.fillStyle = C.ink2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, W / 2, H / 2);
+  }
+
+  root.RamanPlots = { drawSpectrum, drawStacked, drawSiCheck, drawMessage, colors: C };
 })(typeof self !== 'undefined' ? self : this);
